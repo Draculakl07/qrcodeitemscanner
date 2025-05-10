@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8" />
   <title>QR Stock Scanner</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
@@ -16,53 +15,50 @@
     const html5QrCode = new Html5Qrcode("reader");
 
     function onScanSuccess(qrCodeMessage) {
-  html5QrCode.stop();  // Stop scanner temporarily
+      html5QrCode.stop();  // Stop scanner temporarily
 
-  // Step 1: fetch item info first to get unit
-  fetch("http://localhost:5000/api/stock")
-    .then(res => res.json())
-    .then(stockItems => {
-      const item = stockItems.find(i => i.qrCode === qrCodeMessage);
-      if (!item) {
-        alert("❌ Item not found in stock.");
-        restartScanner();
-        return;
-      }
-
-      const qty = prompt(`How many ${item.unit || "units"} are you taking?`);
-      if (!qty || isNaN(qty)) {
-        alert("❌ Invalid quantity.");
-        restartScanner();
-        return;
-      }
-
-      // Step 2: reduce quantity
-      fetch("http://localhost:5000/api/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          qrCode: qrCodeMessage,
-          quantity: parseInt(qty)
-        })
-      })
+      fetch("https://qr-stock-backend.onrender.com/api/stock")
         .then(res => res.json())
-        .then(data => {
-          if (data.message) {
-            document.getElementById("resultMsg").innerText =
-              `✅ ${data.message} | Remaining: ${data.item.quantity} ${data.item.unit}`;
-          } else {
-            document.getElementById("resultMsg").innerText = "⚠️ " + data;
+        .then(stockItems => {
+          const item = stockItems.find(i => i.qrCode === qrCodeMessage);
+          if (!item) {
+            alert("❌ Item not found in stock.");
+            restartScanner();
+            return;
           }
-          restartScanner();
-        })
-        .catch(err => {
-          console.error(err);
-          document.getElementById("resultMsg").innerText = "❌ Server error.";
-          restartScanner();
-        });
-    });
-}
 
+          const qty = prompt(`How many ${item.unit || "units"} are you taking?`);
+          if (!qty || isNaN(qty)) {
+            alert("❌ Invalid quantity.");
+            restartScanner();
+            return;
+          }
+
+          fetch("https://qr-stock-backend.onrender.com/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              qrCode: qrCodeMessage,
+              quantity: parseInt(qty)
+            })
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.message) {
+                document.getElementById("resultMsg").innerText =
+                  `✅ ${data.message} | Remaining: ${data.item.quantity} ${data.item.unit}`;
+              } else {
+                document.getElementById("resultMsg").innerText = "⚠️ " + data;
+              }
+              restartScanner();
+            })
+            .catch(err => {
+              console.error(err);
+              document.getElementById("resultMsg").innerText = "❌ Server error.";
+              restartScanner();
+            });
+        });
+    }
 
     function onScanFailure(error) {
       // Optional: log failed attempts
@@ -76,10 +72,9 @@
           onScanSuccess,
           onScanFailure
         );
-      }, 3000);  // restart after 3 seconds
+      }, 3000);
     }
 
-    // Start on load
     restartScanner();
   </script>
 </body>

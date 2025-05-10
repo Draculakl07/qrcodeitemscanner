@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -24,7 +24,7 @@
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("http://localhost:5000/api/upload", {
+      const res = await fetch("https://qr-stock-backend.onrender.com/api/upload", {
         method: "POST",
         body: formData
       });
@@ -34,14 +34,14 @@
     }
 
     async function loadStock() {
-      const res = await fetch("http://localhost:5000/api/stock");
+      const res = await fetch("https://qr-stock-backend.onrender.com/api/stock");
       const items = await res.json();
       const list = document.getElementById("stockList");
       list.innerHTML = "";
 
       items.forEach(item => {
         const li = document.createElement("li");
-        li.innerText = `${item.itemName} (QR: ${item.qrCode}) - Qty: ${item.quantity}`;
+        li.innerText = `${item.itemName} (QR: ${item.qrCode}) - Qty: ${item.quantity} ${item.unit}`;
         list.appendChild(li);
       });
     }
