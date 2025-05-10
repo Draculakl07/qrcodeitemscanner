@@ -1,26 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin - QR Stock Upload</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📦 Admin Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light py-4">
   <div class="container text-center">
     <h2 class="mb-4">📦 Admin Dashboard</h2>
 
-    <div class="mb-4">
+    <div class="mb-3">
       <h5>Upload Stock Excel</h5>
-      <input class="form-control mb-2" type="file" id="excelFile">
-      <button class="btn btn-primary" onclick="uploadFile()">Upload</button>
-      <p id="uploadStatus" class="mt-2 text-success fw-semibold"></p>
+      <input type="file" id="excelFile" class="form-control mb-2" />
+      <button onclick="uploadFile()" class="btn btn-primary">Upload</button>
+      <p id="uploadStatus" class="mt-2 text-success fw-bold"></p>
     </div>
+
+    <hr/>
 
     <div>
       <h5>Current Stock</h5>
-      <button class="btn btn-secondary mb-3" onclick="loadStock()">View Current Stock</button>
-      <div id="stockList" class="text-start"></div>
+      <button onclick="loadStock()" class="btn btn-secondary mb-2">View Current Stock</button>
+      <ul id="stockList" class="list-group text-start"></ul>
     </div>
   </div>
 
@@ -46,22 +48,12 @@
       const list = document.getElementById("stockList");
       list.innerHTML = "";
 
-      if (items.length === 0) {
-        list.innerHTML = "<p>No stock available.</p>";
-        return;
-      }
-
-      const ul = document.createElement("ul");
-      ul.className = "list-group";
-
       items.forEach(item => {
         const li = document.createElement("li");
         li.className = "list-group-item";
         li.innerText = `${item.itemName} (QR: ${item.qrCode}) - Qty: ${item.quantity} ${item.unit}`;
-        ul.appendChild(li);
+        list.appendChild(li);
       });
-
-      list.appendChild(ul);
     }
   </script>
 </body>
