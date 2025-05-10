@@ -18,7 +18,9 @@
     document.addEventListener("DOMContentLoaded", () => {
       const html5QrCode = new Html5Qrcode("reader");
 
-      function processQRCode(qrCodeMessage) {
+      function processQRCode(qrCodeMessage, attempt = 1) {
+        document.getElementById("resultMsg").innerText = "🔄 Fetching stock...";
+
         fetch("https://qrcodeitemscannerbackend.onrender.com/api/stock")
           .then(res => res.json())
           .then(stockItems => {
@@ -61,9 +63,14 @@
             });
           })
           .catch(err => {
-            alert("❌ Could not fetch stock data.");
-            console.error(err);
-            restartScanner();
+            console.error("Fetch stock error:", err);
+            if (attempt < 3) {
+              document.getElementById("resultMsg").innerText = `⏳ Retrying stock fetch... (${attempt}/3)`;
+              setTimeout(() => processQRCode(qrCodeMessage, attempt + 1), 3000);
+            } else {
+              alert("❌ Could not fetch stock data.");
+              restartScanner();
+            }
           });
       }
 
@@ -82,8 +89,8 @@
       const presetCode = params.get("code");
 
       if (presetCode) {
-        // Small delay to ensure everything is ready
-        setTimeout(() => processQRCode(presetCode), 500);
+        // Delay to allow mobile browser to fully render
+        setTimeout(() => processQRCode(presetCode), 1000);
       } else {
         restartScanner();
       }
