@@ -3,33 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>📦 Admin Dashboard</title>
+  <title>📦 Admin Panel</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    #dashboard { display: none; }
+  </style>
 </head>
 <body class="bg-light py-4">
   <div class="container text-center">
-    <h2 class="mb-4">📦 Admin Dashboard</h2>
-
-    <div class="mb-3">
-      <h5>Upload Stock Excel</h5>
-      <input type="file" id="excelFile" class="form-control mb-2" />
-      <button onclick="uploadFile()" class="btn btn-primary">Upload</button>
-      <p id="uploadStatus" class="mt-2 text-success fw-bold"></p>
+    <h2 class="mb-4">🔐 Admin Login</h2>
+    <div id="login">
+      <input type="password" id="pin" placeholder="Enter 1234" class="form-control mb-2 w-50 mx-auto" />
+      <button onclick="validatePIN()" class="btn btn-primary">Login</button>
+      <p id="loginStatus" class="text-danger mt-2 fw-bold"></p>
     </div>
 
-    <hr/>
+    <div id="dashboard">
+      <h3 class="mb-3">📦 Admin Dashboard</h3>
 
-    <div>
-      <h5>Current Stock</h5>
+      <h5>Upload Excel</h5>
+      <input type="file" id="excelFile" class="form-control mb-2" />
+      <button onclick="uploadFile()" class="btn btn-success mb-4">Upload</button>
+      <p id="uploadStatus" class="text-success fw-bold"></p>
+
+      <h5>View Stock</h5>
       <button onclick="loadStock()" class="btn btn-secondary mb-2">View Current Stock</button>
-      <ul id="stockList" class="list-group text-start"></ul>
+      <ul id="stockList" class="list-group text-start mb-4"></ul>
+
+      <h5>Action Logs</h5>
+      <button onclick="loadLogs()" class="btn btn-dark mb-2">View Logs</button>
+      <pre id="logViewer" class="text-start bg-white p-2 border rounded"></pre>
     </div>
   </div>
 
   <script>
+    function validatePIN() {
+      const pin = document.getElementById("pin").value;
+      if (pin === "1234") {
+        document.getElementById("login").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+      } else {
+        document.getElementById("loginStatus").innerText = "Incorrect PIN!";
+      }
+    }
+
     async function uploadFile() {
-      const fileInput = document.getElementById("excelFile");
-      const file = fileInput.files[0];
+      const file = document.getElementById("excelFile").files[0];
       const formData = new FormData();
       formData.append("file", file);
 
@@ -38,8 +57,7 @@
         body: formData
       });
 
-      const text = await res.text();
-      document.getElementById("uploadStatus").innerText = text;
+      document.getElementById("uploadStatus").innerText = await res.text();
     }
 
     async function loadStock() {
@@ -54,6 +72,12 @@
         li.innerText = `${item.itemName} (QR: ${item.qrCode}) - Qty: ${item.quantity} ${item.unit}`;
         list.appendChild(li);
       });
+    }
+
+    async function loadLogs() {
+      const res = await fetch("https://qrcodeitemscannerbackend.onrender.com/api/log");
+      const text = await res.text();
+      document.getElementById("logViewer").innerText = text;
     }
   </script>
 </body>
