@@ -18,7 +18,7 @@
     const html5QrCode = new Html5Qrcode("reader");
 
     function onScanSuccess(qrCodeMessage) {
-      html5QrCode.stop();  // Stop scanning until process is complete
+      html5QrCode.stop();  // Stop scanning while processing
 
       fetch("https://qrcodeitemscannerbackend.onrender.com/api/stock")
         .then(res => res.json())
@@ -82,7 +82,15 @@
       }, 3000);
     }
 
-    restartScanner();
+    // Check if ?code= is present in the URL and simulate scan
+    const params = new URLSearchParams(window.location.search);
+    const presetCode = params.get("code");
+
+    if (presetCode) {
+      onScanSuccess(presetCode);  // Auto-process
+    } else {
+      restartScanner();  // Regular scanning
+    }
   </script>
 </body>
 </html>
