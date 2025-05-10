@@ -16,7 +16,7 @@ app.use(cors());
 app.use(express.json());
 app.use("/api", stockRoutes);
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log("MongoDB connected!");
   console.log(`Server is running on port ${PORT}`);
 });
