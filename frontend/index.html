@@ -18,31 +18,34 @@
     const html5QrCode = new Html5Qrcode("reader");
 
     function onScanSuccess(qrCodeMessage) {
-      html5QrCode.stop();
+      html5QrCode.stop();  // Stop scanning until process is complete
 
-      fetch("https://qr-stock-backend.onrender.com/api/stock")
+      fetch("https://qrcodeitemscannerbackend.onrender.com/api/stock")
         .then(res => res.json())
         .then(stockItems => {
           const item = stockItems.find(i => i.qrCode === qrCodeMessage);
+
           if (!item) {
-            alert("❌ Item not found.");
+            alert("❌ Item not found in stock.");
             restartScanner();
             return;
           }
 
           const qty = prompt(`How many ${item.unit || "units"} are you taking?`);
-          if (!qty || isNaN(qty)) {
+          const qtyNum = parseFloat(qty);
+
+          if (isNaN(qtyNum) || qtyNum <= 0) {
             alert("❌ Invalid quantity.");
             restartScanner();
             return;
           }
 
-          fetch("https://qr-stock-backend.onrender.com/api/scan", {
+          fetch("https://qrcodeitemscannerbackend.onrender.com/api/scan", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               qrCode: qrCodeMessage,
-              quantity: parseInt(qty)
+              quantity: qtyNum
             })
           })
           .then(res => res.json())
@@ -51,7 +54,7 @@
               document.getElementById("resultMsg").innerText =
                 `✅ ${data.message} | Remaining: ${data.item.quantity} ${data.item.unit}`;
             } else {
-              document.getElementById("resultMsg").innerText = "⚠️ " + data;
+              document.getElementById("resultMsg").innerText = "⚠️ " + (data.error || "Unexpected error");
             }
             restartScanner();
           })
@@ -60,10 +63,13 @@
             document.getElementById("resultMsg").innerText = "❌ Server error.";
             restartScanner();
           });
+        })
+        .catch(err => {
+          alert("❌ Could not fetch stock data.");
+          console.error(err);
+          restartScanner();
         });
     }
-
-    function onScanFailure(error) {}
 
     function restartScanner() {
       setTimeout(() => {
@@ -71,7 +77,7 @@
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 } },
           onScanSuccess,
-          onScanFailure
+          error => {}
         );
       }, 3000);
     }
