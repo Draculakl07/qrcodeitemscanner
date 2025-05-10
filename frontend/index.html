@@ -15,82 +15,81 @@
   </div>
 
   <script>
-    const html5QrCode = new Html5Qrcode("reader");
+    document.addEventListener("DOMContentLoaded", () => {
+      const html5QrCode = new Html5Qrcode("reader");
 
-    function onScanSuccess(qrCodeMessage) {
-      html5QrCode.stop();  // Stop scanning while processing
+      function onScanSuccess(qrCodeMessage) {
+        html5QrCode.stop();
 
-      fetch("https://qrcodeitemscannerbackend.onrender.com/api/stock")
-        .then(res => res.json())
-        .then(stockItems => {
-          const item = stockItems.find(i => i.qrCode === qrCodeMessage);
-
-          if (!item) {
-            alert("❌ Item not found in stock.");
-            restartScanner();
-            return;
-          }
-
-          const qty = prompt(`How many ${item.unit || "units"} are you taking?`);
-          const qtyNum = parseFloat(qty);
-
-          if (isNaN(qtyNum) || qtyNum <= 0) {
-            alert("❌ Invalid quantity.");
-            restartScanner();
-            return;
-          }
-
-          fetch("https://qrcodeitemscannerbackend.onrender.com/api/scan", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              qrCode: qrCodeMessage,
-              quantity: qtyNum
-            })
-          })
+        fetch("https://qrcodeitemscannerbackend.onrender.com/api/stock")
           .then(res => res.json())
-          .then(data => {
-            if (data.message) {
-              document.getElementById("resultMsg").innerText =
-                `✅ ${data.message} | Remaining: ${data.item.quantity} ${data.item.unit}`;
-            } else {
-              document.getElementById("resultMsg").innerText = "⚠️ " + (data.error || "Unexpected error");
+          .then(stockItems => {
+            const item = stockItems.find(i => i.qrCode === qrCodeMessage);
+
+            if (!item) {
+              alert("❌ Item not found in stock.");
+              restartScanner();
+              return;
             }
-            restartScanner();
+
+            const qty = prompt(`How many ${item.unit || "units"} are you taking?`);
+            const qtyNum = parseFloat(qty);
+
+            if (isNaN(qtyNum) || qtyNum <= 0) {
+              alert("❌ Invalid quantity.");
+              restartScanner();
+              return;
+            }
+
+            fetch("https://qrcodeitemscannerbackend.onrender.com/api/scan", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ qrCode: qrCodeMessage, quantity: qtyNum })
+            })
+              .then(res => res.json())
+              .then(data => {
+                if (data.message) {
+                  document.getElementById("resultMsg").innerText =
+                    `✅ ${data.message} | Remaining: ${data.item.quantity} ${data.item.unit}`;
+                } else {
+                  document.getElementById("resultMsg").innerText = "⚠️ " + (data.error || "Unexpected error");
+                }
+                restartScanner();
+              })
+              .catch(err => {
+                console.error(err);
+                document.getElementById("resultMsg").innerText = "❌ Server error.";
+                restartScanner();
+              });
           })
           .catch(err => {
+            alert("❌ Could not fetch stock data.");
             console.error(err);
-            document.getElementById("resultMsg").innerText = "❌ Server error.";
             restartScanner();
           });
-        })
-        .catch(err => {
-          alert("❌ Could not fetch stock data.");
-          console.error(err);
-          restartScanner();
-        });
-    }
+      }
 
-    function restartScanner() {
-      setTimeout(() => {
-        html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          onScanSuccess,
-          error => {}
-        );
-      }, 3000);
-    }
+      function restartScanner() {
+        setTimeout(() => {
+          html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            onScanSuccess,
+            error => {}
+          );
+        }, 3000);
+      }
 
-    // Check if ?code= is present in the URL and simulate scan
-    const params = new URLSearchParams(window.location.search);
-    const presetCode = params.get("code");
+      const params = new URLSearchParams(window.location.search);
+      const presetCode = params.get("code");
 
-    if (presetCode) {
-      onScanSuccess(presetCode);  // Auto-process
-    } else {
-      restartScanner();  // Regular scanning
-    }
+      if (presetCode) {
+        // Wait 500ms before triggering to avoid early call before canvas ready
+        setTimeout(() => onScanSuccess(presetCode), 500);
+      } else {
+        restartScanner();
+      }
+    });
   </script>
 </body>
 </html>
