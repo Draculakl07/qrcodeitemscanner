@@ -18,9 +18,7 @@
     document.addEventListener("DOMContentLoaded", () => {
       const html5QrCode = new Html5Qrcode("reader");
 
-      function onScanSuccess(qrCodeMessage) {
-        html5QrCode.stop();
-
+      function processQRCode(qrCodeMessage) {
         fetch("https://qrcodeitemscannerbackend.onrender.com/api/stock")
           .then(res => res.json())
           .then(stockItems => {
@@ -46,21 +44,21 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ qrCode: qrCodeMessage, quantity: qtyNum })
             })
-              .then(res => res.json())
-              .then(data => {
-                if (data.message) {
-                  document.getElementById("resultMsg").innerText =
-                    `✅ ${data.message} | Remaining: ${data.item.quantity} ${data.item.unit}`;
-                } else {
-                  document.getElementById("resultMsg").innerText = "⚠️ " + (data.error || "Unexpected error");
-                }
-                restartScanner();
-              })
-              .catch(err => {
-                console.error(err);
-                document.getElementById("resultMsg").innerText = "❌ Server error.";
-                restartScanner();
-              });
+            .then(res => res.json())
+            .then(data => {
+              if (data.message) {
+                document.getElementById("resultMsg").innerText =
+                  `✅ ${data.message} | Remaining: ${data.item.quantity} ${data.item.unit}`;
+              } else {
+                document.getElementById("resultMsg").innerText = "⚠️ " + (data.error || "Unexpected error");
+              }
+              restartScanner();
+            })
+            .catch(err => {
+              console.error(err);
+              document.getElementById("resultMsg").innerText = "❌ Server error.";
+              restartScanner();
+            });
           })
           .catch(err => {
             alert("❌ Could not fetch stock data.");
@@ -74,7 +72,7 @@
           html5QrCode.start(
             { facingMode: "environment" },
             { fps: 10, qrbox: { width: 250, height: 250 } },
-            onScanSuccess,
+            processQRCode,
             error => {}
           );
         }, 3000);
@@ -84,8 +82,8 @@
       const presetCode = params.get("code");
 
       if (presetCode) {
-        // Wait 500ms before triggering to avoid early call before canvas ready
-        setTimeout(() => onScanSuccess(presetCode), 500);
+        // Small delay to ensure everything is ready
+        setTimeout(() => processQRCode(presetCode), 500);
       } else {
         restartScanner();
       }
