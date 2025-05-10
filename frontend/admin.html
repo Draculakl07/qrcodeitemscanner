@@ -1,21 +1,28 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta charset="UTF-8">
   <title>Admin - QR Stock Upload</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-  <h1>📦 Admin Dashboard</h1>
+<body class="bg-light py-4">
+  <div class="container text-center">
+    <h2 class="mb-4">📦 Admin Dashboard</h2>
 
-  <h3>Upload Stock Excel</h3>
-  <input type="file" id="excelFile">
-  <button onclick="uploadFile()">Upload</button>
-  <p id="uploadStatus"></p>
+    <div class="mb-3">
+      <h5>Upload Stock Excel</h5>
+      <input class="form-control mb-2" type="file" id="excelFile">
+      <button class="btn btn-primary" onclick="uploadFile()">Upload</button>
+      <p id="uploadStatus" class="mt-2 text-success fw-semibold"></p>
+    </div>
 
-  <h3>Current Stock</h3>
-  <button onclick="loadStock()">View Current Stock</button>
-  <ul id="stockList"></ul>
+    <div>
+      <h5>Current Stock</h5>
+      <button class="btn btn-outline-secondary mb-3" onclick="loadStock()">View Current Stock</button>
+      <ul id="stockList" class="list-group text-start"></ul>
+    </div>
+  </div>
 
   <script>
     async function uploadFile() {
@@ -41,6 +48,7 @@
 
       items.forEach(item => {
         const li = document.createElement("li");
+        li.className = "list-group-item";
         li.innerText = `${item.itemName} (QR: ${item.qrCode}) - Qty: ${item.quantity} ${item.unit}`;
         list.appendChild(li);
       });

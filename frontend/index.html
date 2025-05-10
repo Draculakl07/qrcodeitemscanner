@@ -1,28 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>QR Stock Scanner</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-  <h1>📷 QR Scanner - Take Item</h1>
-  <div id="reader" style="width: 300px;"></div>
-  <p id="resultMsg"></p>
+<body class="bg-light text-center py-4">
+  <div class="container">
+    <h2 class="mb-4">📷 QR Scanner - Take Item</h2>
+    <div id="reader" style="width: 100%; max-width: 320px; margin: auto;"></div>
+    <p id="resultMsg" class="mt-4 fw-semibold text-success"></p>
+  </div>
 
   <script>
     const html5QrCode = new Html5Qrcode("reader");
 
     function onScanSuccess(qrCodeMessage) {
-      html5QrCode.stop();  // Stop scanner temporarily
+      html5QrCode.stop();
 
       fetch("https://qr-stock-backend.onrender.com/api/stock")
         .then(res => res.json())
         .then(stockItems => {
           const item = stockItems.find(i => i.qrCode === qrCodeMessage);
           if (!item) {
-            alert("❌ Item not found in stock.");
+            alert("❌ Item not found.");
             restartScanner();
             return;
           }
@@ -42,27 +45,25 @@
               quantity: parseInt(qty)
             })
           })
-            .then(res => res.json())
-            .then(data => {
-              if (data.message) {
-                document.getElementById("resultMsg").innerText =
-                  `✅ ${data.message} | Remaining: ${data.item.quantity} ${data.item.unit}`;
-              } else {
-                document.getElementById("resultMsg").innerText = "⚠️ " + data;
-              }
-              restartScanner();
-            })
-            .catch(err => {
-              console.error(err);
-              document.getElementById("resultMsg").innerText = "❌ Server error.";
-              restartScanner();
-            });
+          .then(res => res.json())
+          .then(data => {
+            if (data.message) {
+              document.getElementById("resultMsg").innerText =
+                `✅ ${data.message} | Remaining: ${data.item.quantity} ${data.item.unit}`;
+            } else {
+              document.getElementById("resultMsg").innerText = "⚠️ " + data;
+            }
+            restartScanner();
+          })
+          .catch(err => {
+            console.error(err);
+            document.getElementById("resultMsg").innerText = "❌ Server error.";
+            restartScanner();
+          });
         });
     }
 
-    function onScanFailure(error) {
-      // Optional: log failed attempts
-    }
+    function onScanFailure(error) {}
 
     function restartScanner() {
       setTimeout(() => {
