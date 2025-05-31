@@ -2,61 +2,89 @@ const express = require("express");
 const multer = require("multer");
 const XLSX = require("xlsx");
 const Item = require("../controllers/stockController");
+const fs = require("fs");
+const path = require("path");
 
 const router = express.Router();
-
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// ✅ Upload Excel and save items to DB
+// ✅ Upload Excel: Overwrite or Add
 router.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-    const sheetName = workbook.SheetNames[0];
-    const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet);
 
-    const processedItems = [];
+    for (const row of rows) {
+      const itemName = row["Material Description"];
+      const qrCode = row["Material"];
+      let quantity = parseFloat(row["QTY"]);
+      let unit = (row["Unit"] || "").toLowerCase().trim();
 
-    for (const row of rawData) {
-  const itemName = row["Material Description"] || "";
-  const qrCode = row["Material"] || "";
-  let quantityRaw = row["QTY"] || "";
-  let quantity = parseFloat(quantityRaw);
-  let unit = (row["Unit"] || "").toLowerCase().trim();
+      if (!itemName || !qrCode || isNaN(quantity)) continue;
 
-  if (!itemName || !qrCode || isNaN(quantity)) {
-    console.warn("⚠️ Skipping invalid row:", row);
-    continue;
-  }
+      if (unit === "g" || unit === "grams") {
+        quantity = quantity / 1000;
+        unit = "kg";
+      }
 
-  if (unit === "g" || unit === "grams") {
-    quantity = quantity / 1000;
-    unit = "kg";
-  }
-
-  processedItems.push({
-    itemName,
-    qrCode,
-    quantity,
-    unit
-  });
-}
-
-    if (processedItems.length === 0) {
-      return res.status(400).send("No valid items found in Excel.");
+      await Item.findOneAndUpdate(
+        { qrCode },
+        { itemName, qrCode, quantity, unit },
+        { upsert: true, new: true }
+      );
     }
 
-    await Item.deleteMany();
-    await Item.insertMany(processedItems);
-
-    res.status(200).send("✅ Items uploaded successfully with units.");
+    res.status(200).send("✅ Upload successful. Existing entries updated, new added.");
   } catch (err) {
     console.error("❌ Upload failed:", err);
-    res.status(500).send("Upload failed");
+    res.status(500).send("Upload failed.");
   }
 });
 
-// ✅ Scan QR code to reduce quantity
+// ✅ Download Template
+router.get("/template", (req, res) => {
+  const headers = ["Material Description", "Material", "QTY", "Unit"];
+  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+
+  const filePath = path.join(__dirname, "../template.xlsx");
+  XLSX.writeFile(workbook, filePath);
+
+  res.download(filePath, "Template.xlsx", err => {
+    if (!err) fs.unlinkSync(filePath);
+  });
+});
+
+// ✅ Download Current Stock
+router.get("/download", async (req, res) => {
+  try {
+    const items = await Item.find();
+    const worksheet = XLSX.utils.json_to_sheet(items.map(item => ({
+      Material: item.qrCode,
+      "Material Description": item.itemName,
+      QTY: item.quantity,
+      Unit: item.unit.toUpperCase()
+    })));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Stock");
+
+    const filePath = path.join(__dirname, "../current_stock.xlsx");
+    XLSX.writeFile(workbook, filePath);
+
+    res.download(filePath, "Current_Stock.xlsx", err => {
+      if (!err) fs.unlinkSync(filePath);
+    });
+  } catch (err) {
+    console.error("❌ Download failed:", err);
+    res.status(500).send("Failed to download stock.");
+  }
+});
+
+// ✅ Scan to Reduce
 router.post("/scan", async (req, res) => {
   const { qrCode, quantity = 1 } = req.body;
 
@@ -64,34 +92,42 @@ router.post("/scan", async (req, res) => {
     const item = await Item.findOne({ qrCode });
     if (!item) return res.status(404).send("Item not found");
 
-    const qty = parseInt(quantity);
-
-    if (isNaN(qty) || qty <= 0) {
-      return res.status(400).send("Invalid quantity requested");
-    }
-
-    if (item.quantity < qty) {
-      return res.status(400).send(`Only ${item.quantity} ${item.unit} left in stock`);
-    }
+    const qty = parseFloat(quantity);
+    if (isNaN(qty) || qty <= 0) return res.status(400).send("Invalid quantity");
+    if (item.quantity < qty) return res.status(400).send(`Only ${item.quantity} ${item.unit} left`);
 
     item.quantity -= qty;
     await item.save();
 
-    res.json({
-      message: `✅ ${qty} ${item.unit} taken`,
-      item
-    });
+    res.json({ message: `✅ ${qty} ${item.unit} taken`, item });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error processing request");
+    console.error("❌ Scan error:", err);
+    res.status(500).send("Scan failed");
   }
 });
 
-
-// ✅ Get stock list
+// ✅ Get Current Stock
 router.get("/stock", async (req, res) => {
   const items = await Item.find();
   res.json(items);
+});
+
+// ✅ Save Logs
+router.post("/log", (req, res) => {
+  const { action, timestamp } = req.body;
+  const logLine = `[${timestamp}] ${action}\n`;
+  fs.appendFileSync("log.txt", logLine);
+  res.sendStatus(200);
+});
+
+// ✅ View Logs
+router.get("/log", (req, res) => {
+  try {
+    const data = fs.readFileSync("log.txt", "utf8");
+    res.type("text/plain").send(data);
+  } catch (err) {
+    res.status(500).send("Log file not found.");
+  }
 });
 
 module.exports = router;

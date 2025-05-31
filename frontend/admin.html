@@ -7,6 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     #dashboard { display: none; }
+    #stockList { display: none; }
   </style>
 </head>
 <body class="bg-light py-4">
@@ -26,8 +27,12 @@
       <button onclick="uploadFile()" class="btn btn-success mb-4">Upload</button>
       <p id="uploadStatus" class="text-success fw-bold"></p>
 
-      <h5>View Stock</h5>
-      <button onclick="loadStock()" class="btn btn-secondary mb-2">View Current Stock</button>
+      <h5>Download Options</h5>
+      <button onclick="downloadTemplate()" class="btn btn-outline-secondary me-2">Download Template</button>
+      <button onclick="downloadStock()" class="btn btn-outline-secondary">Download Current Stock</button>
+
+      <h5 class="mt-4">View Stock</h5>
+      <button onclick="toggleStock()" class="btn btn-secondary mb-2" id="toggleStockBtn">View Current Stock</button>
       <ul id="stockList" class="list-group text-start mb-4"></ul>
 
       <h5>Action Logs</h5>
@@ -37,6 +42,10 @@
   </div>
 
   <script>
+    const API_BASE = location.hostname.includes("localhost")
+      ? "http://localhost:10000/api"
+      : "https://qrcodeitemscannerbackend.onrender.com/api";
+
     function validatePIN() {
       const pin = document.getElementById("pin").value;
       if (pin === "1234") {
@@ -52,7 +61,7 @@
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("https://qrcodeitemscannerbackend.onrender.com/api/upload", {
+      const res = await fetch(`${API_BASE}/upload`, {
         method: "POST",
         body: formData
       });
@@ -60,8 +69,16 @@
       document.getElementById("uploadStatus").innerText = await res.text();
     }
 
+    function downloadTemplate() {
+      window.open(`${API_BASE}/template`, "_blank");
+    }
+
+    function downloadStock() {
+      window.open(`${API_BASE}/download`, "_blank");
+    }
+
     async function loadStock() {
-      const res = await fetch("https://qrcodeitemscannerbackend.onrender.com/api/stock");
+      const res = await fetch(`${API_BASE}/stock`);
       const items = await res.json();
       const list = document.getElementById("stockList");
       list.innerHTML = "";
@@ -74,10 +91,24 @@
       });
     }
 
+    async function toggleStock() {
+      const list = document.getElementById("stockList");
+      const btn = document.getElementById("toggleStockBtn");
+
+      if (list.style.display === "none") {
+        await loadStock();
+        list.style.display = "block";
+        btn.innerText = "Hide Current Stock";
+      } else {
+        list.style.display = "none";
+        btn.innerText = "View Current Stock";
+      }
+    }
+
     async function loadLogs() {
-      const res = await fetch("https://qrcodeitemscannerbackend.onrender.com/api/log");
+      const res = await fetch(`${API_BASE}/log`);
       const text = await res.text();
-      document.getElementById("logViewer").innerText = text;
+      document.getElementById("logViewer").innerText = text || "No logs yet.";
     }
   </script>
 </body>
