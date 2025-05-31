@@ -19,7 +19,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     for (const row of rows) {
       const qrCode = row["Material"];
       const itemName = row["Material Description"];
-            let quantity = parseFloat(row["QTY"]);
+      let quantity = parseFloat(row["QTY"]);
       let unit = (row["Unit"] || "").toLowerCase().trim();
 
       if (!itemName || !qrCode || isNaN(quantity)) continue;
@@ -53,7 +53,6 @@ router.get("/template", (req, res) => {
     res.status(404).send("Template file not found in uploads folder.");
   }
 });
-
 
 // ✅ Download Current Stock
 router.get("/download", async (req, res) => {
@@ -103,10 +102,48 @@ router.post("/scan", async (req, res) => {
   }
 });
 
-// ✅ Get Current Stock
+// ✅ Get All Stock
 router.get("/stock", async (req, res) => {
   const items = await Item.find();
   res.json(items);
+});
+
+// ✅ Edit Stock Quantity
+router.post("/edit", async (req, res) => {
+  const { qrCode, quantity } = req.body;
+
+  try {
+    const item = await Item.findOne({ qrCode });
+    if (!item) return res.status(404).send("Item not found");
+
+    const qty = parseFloat(quantity);
+    if (isNaN(qty) || qty < 0) return res.status(400).send("Invalid quantity");
+
+    item.quantity = qty;
+    await item.save();
+
+    res.json({ message: "✅ Quantity updated", item });
+  } catch (err) {
+    console.error("❌ Update error:", err);
+    res.status(500).send("Failed to update");
+  }
+});
+
+// ✅ Delete Stock Item
+router.delete("/delete/:qrCode", async (req, res) => {
+  try {
+    const { qrCode } = req.params;
+    const result = await Item.deleteOne({ qrCode });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send("Item not found");
+    }
+
+    res.send("✅ Item deleted");
+  } catch (err) {
+    console.error("❌ Delete error:", err);
+    res.status(500).send("Failed to delete item");
+  }
 });
 
 // ✅ Save Logs
