@@ -17,9 +17,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     const rows = XLSX.utils.sheet_to_json(sheet);
 
     for (const row of rows) {
-      const itemName = row["Material Description"];
       const qrCode = row["Material"];
-      let quantity = parseFloat(row["QTY"]);
+      const itemName = row["Material Description"];
+            let quantity = parseFloat(row["QTY"]);
       let unit = (row["Unit"] || "").toLowerCase().trim();
 
       if (!itemName || !qrCode || isNaN(quantity)) continue;
@@ -43,20 +43,17 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
-// ✅ Download Template
+// ✅ Download Template from uploads folder
 router.get("/template", (req, res) => {
-  const headers = ["Material Description", "Material", "QTY", "Unit"];
-  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+  const filePath = path.join(__dirname, "../uploads/template.xlsx");
 
-  const filePath = path.join(__dirname, "../template.xlsx");
-  XLSX.writeFile(workbook, filePath);
-
-  res.download(filePath, "Template.xlsx", err => {
-    if (!err) fs.unlinkSync(filePath);
-  });
+  if (fs.existsSync(filePath)) {
+    res.download(filePath, "Template.xlsx");
+  } else {
+    res.status(404).send("Template file not found in uploads folder.");
+  }
 });
+
 
 // ✅ Download Current Stock
 router.get("/download", async (req, res) => {
