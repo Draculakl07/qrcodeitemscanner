@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>QR Stock Scanner</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -22,6 +22,10 @@
   <audio id="beep" src="https://www.soundjay.com/button/beep-07.mp3" preload="auto"></audio>
 
   <script>
+    const API_BASE = location.hostname.includes("localhost")
+      ? "http://localhost:10000/api"
+      : "https://qrcodeitemscannerbackend.onrender.com/api";
+
     document.addEventListener("DOMContentLoaded", () => {
       const html5QrCode = new Html5Qrcode("reader");
       const readerWrapper = document.getElementById("reader-wrapper");
@@ -29,7 +33,7 @@
       const beep = document.getElementById("beep");
 
       function logAdminAction(item, qtyNum) {
-        fetch("https://qrcodeitemscannerbackend.onrender.com/api/log", {
+        fetch(`${API_BASE}/log`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -39,52 +43,59 @@
         });
       }
 
-      function processQRCode(qrCodeMessage) {
+      async function processQRCode(qrCodeMessage) {
         resultMsg.innerText = "🔄 Fetching stock...";
         readerWrapper.classList.add("hidden");
 
-        fetch("https://qrcodeitemscannerbackend.onrender.com/api/stock")
-          .then(res => res.json())
-          .then(stockItems => {
-            const item = stockItems.find(i => i.qrCode === qrCodeMessage);
+        try {
+          const res = await fetch(`${API_BASE}/stock`);
+          const stockItems = await res.json();
+          const item = stockItems.find(i => i.qrCode === qrCodeMessage);
 
-            if (!item) {
-              alert("❌ Item not found.");
-              return;
-            }
+          if (!item) {
+            alert("❌ Item not found.");
+            location.reload();
+            return;
+          }
 
-            const qty = prompt(`How many ${item.unit || "units"} are you taking?`);
-            const qtyNum = parseFloat(qty);
+          const promptMsg = `📦 ${item.itemName}\nAvailable: ${item.quantity} ${item.unit}\nHow many do you want to take?`;
+          const qty = prompt(promptMsg);
+          const qtyNum = parseFloat(qty);
 
-            if (isNaN(qtyNum) || qtyNum <= 0) {
-              alert("❌ Invalid quantity.");
-              return;
-            }
+          if (isNaN(qtyNum) || qtyNum <= 0) {
+            alert("❌ Invalid quantity. Please rescan.");
+            location.reload();
+            return;
+          }
 
-            fetch("https://qrcodeitemscannerbackend.onrender.com/api/scan", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ qrCode: qrCodeMessage, quantity: qtyNum })
-            })
-            .then(res => res.json())
-            .then(data => {
-              if (data.message) {
-                resultMsg.innerText = `✅ ${data.message} | Remaining: ${data.item.quantity} ${data.item.unit}`;
-                beep.play();
-                logAdminAction(data.item, qtyNum);
-              } else {
-                resultMsg.innerText = "⚠️ " + (data.error || "Unexpected error");
-              }
-            })
-            .catch(err => {
-              console.error(err);
-              resultMsg.innerText = "❌ Server error.";
-            });
-          })
-          .catch(err => {
-            console.error(err);
-            alert("❌ Could not fetch stock data.");
+          if (qtyNum > item.quantity) {
+            alert(`❌ Only ${item.quantity} ${item.unit} available. Please rescan.`);
+            location.reload();
+            return;
+          }
+
+          const scanRes = await fetch(`${API_BASE}/scan`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ qrCode: qrCodeMessage, quantity: qtyNum })
           });
+
+          const data = await scanRes.json();
+
+          if (scanRes.ok && data.message) {
+            resultMsg.innerText = `✅ ${data.message}. Remaining: ${data.item.quantity} ${data.item.unit}\n\n🎉 Thanks for scanning. Please use camera to scan again or wait for few seconds.`;
+            beep.play();
+            logAdminAction(data.item, qtyNum);
+            setTimeout(() => location.reload(), 3000);
+          } else {
+            alert("❌ Scan failed. Please try again.");
+            location.reload();
+          }
+        } catch (err) {
+          console.error(err);
+          alert("❌ Error fetching stock. Please try again.");
+          location.reload();
+        }
       }
 
       const params = new URLSearchParams(window.location.search);
@@ -97,7 +108,7 @@
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 } },
           qrMessage => {
-            html5QrCode.stop(); // Stop after first scan
+            html5QrCode.stop();
             processQRCode(qrMessage);
           },
           error => {}
